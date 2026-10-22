@@ -1,0 +1,22 @@
+{
+  "questions": [
+    {"question": "装饰器是什么？常见用途有哪些？", "gold_source": "01_python_学习笔记.md"},
+    {"question": "生成器用什么关键字？优点是什么？", "gold_source": "01_python_学习笔记.md"},
+    {"question": "过拟合有哪些解决方法？", "gold_source": "02_机器学习入门.md"},
+    {"question": "验证集和测试集的区别是什么？", "gold_source": "02_机器学习入门.md"},
+    {"question": "云南旅行总共预算多少？", "gold_source": "03_云南旅行计划.md"},
+    {"question": "去丽江要注意什么？", "gold_source": "03_云南旅行计划.md"},
+    {"question": "collections 模块里的 Counter 是干什么的？", "gold_source": "04_Python标准库笔记.md"},
+    {"question": "functools 的 lru_cache 有什么用？", "gold_source": "04_Python标准库笔记.md"},
+    {"question": "ReLU 和 Sigmoid 激活函数有什么区别？", "gold_source": "05_深度学习基础.md"},
+    {"question": "Transformer 相比 RNN 有什么优势？", "gold_source": "05_深度学习基础.md"},
+    {"question": "INNER JOIN 和 LEFT JOIN 有什么区别？", "gold_source": "06_数据库SQL笔记.md"},
+    {"question": "事务的 ACID 分别指什么？", "gold_source": "06_数据库SQL笔记.md"},
+    {"question": "TCP 建立连接要几次握手？", "gold_source": "07_计算机网络基础.md"},
+    {"question": "HTTPS 比 HTTP 多了什么？", "gold_source": "07_计算机网络基础.md"},
+    {"question": "grep 怎么忽略大小写搜索？", "gold_source": "08_Linux常用命令.md"},
+    {"question": "日本旅行总共预算多少？", "gold_source": "09_日本旅行计划.md"},
+    {"question": "Promise 有哪三种状态？", "gold_source": "10_前端JavaScript笔记.md"},
+    {"question": "JavaScript 的闭包是什么？", "gold_source": "10_前端JavaScript笔记.md"}
+  ]
+}
