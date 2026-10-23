@@ -1,7 +1,24 @@
 # 部署指南（云端完整版）
 
-> 目标：在一台有公网 IP 的 Linux 服务器上，用 Docker 把本 RAG Agent 跑起来，并用域名 + HTTPS 对外服务。
+> 目标：在一台有公网 IP 的 Linux 服务器上，用 Docker 把本 RAG Agent 跑起来。
 > 全程只需要在服务器上装 Docker，**服务器上不用装 Python**（Docker 镜像里自带）。
+
+---
+
+## 最快方式：一键脚本（推荐，开箱即用的 demo）
+
+买好服务器、放行端口后，`ssh root@服务器IP` 登录，跑这 4 行：
+
+```bash
+git clone https://github.com/wyb123412/rag-agent.git /opt/rag-agent
+cd /opt/rag-agent
+cp .env.example .env && nano .env   # 粘贴 API Key；公网务必填 GRADIO_USERNAME / GRADIO_PASSWORD
+bash deploy.sh
+```
+
+`deploy.sh` 会自动：装 Docker → 检查 .env → 修目录权限 → `docker compose up -d --build` → 入库示例文档。跑完直接访问 `http://服务器IP:7860`。
+
+> 用原始 `IP:7860` 做 demo 无需域名、无需 ICP 备案，最快上线。想要 `https://域名` 再走下面的「域名 + HTTPS」小节。
 
 ---
 

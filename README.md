@@ -169,7 +169,7 @@ venv/Scripts/python -m pytest   # 54 个单测（离线，无需 key）
 
 ## 部署
 
-本地 `docker compose up -d --build` 即可；云服务器部署、HTTPS 反代、数据持久化见 [DEPLOY.md](DEPLOY.md)。
+本地 `docker compose up -d --build` 即可；云服务器一键部署见 [deploy.sh](deploy.sh)，完整步骤（域名 + HTTPS 反代、数据持久化）见 [DEPLOY.md](DEPLOY.md)。
 
 ## 下一步
 
