@@ -23,9 +23,15 @@ DEST = BEIR_DIR / "scifact"
 
 
 def _extract_all(zip_path: Path):
-    """解压到 data/beir/，并把顶层目录规整成 data/beir/scifact/。"""
+    """安全解压到 data/beir/：逐个校验成员路径，防止 zip-slip（路径穿越）。"""
+    beir_root = BEIR_DIR.resolve()
     with zipfile.ZipFile(zip_path) as zf:
-        zf.extractall(BEIR_DIR)
+        for member in zf.infolist():
+            dest = (BEIR_DIR / member.filename).resolve()
+            if not dest.is_relative_to(beir_root):
+                print(f"⚠️  跳过可疑路径：{member.filename}")
+                continue
+            zf.extract(member, BEIR_DIR)
     # 若解压后多出一层顶层目录（如 scifact/），直接就是目标；若文件散在根目录，手动规整
     if (DEST / "corpus.jsonl").exists():
         return

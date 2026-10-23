@@ -1,3 +1,5 @@
+# 说明：容器以非 root 用户（uid 1000）运行，挂载的宿主机目录需可写。
+# 首次启动前执行一次：sudo chown -R 1000:1000 chroma_db data
 services:
   rag-agent:
     build: .
@@ -10,3 +12,9 @@ services:
       - ./chroma_db:/app/chroma_db
       - ./data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

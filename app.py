@@ -14,23 +14,41 @@ for _s in (sys.stdout, sys.stderr):
 import gradio as gr
 
 from rag.agent import Agent
-from rag.config import DATA_DIR
+from rag.config import DATA_DIR, GRADIO_USERNAME, GRADIO_PASSWORD
+from rag.load import SUFFIXES
 from ingest import ingest
 
 agent = Agent()
+
+MAX_UPLOAD_MB = 20  # 单个文件上传上限，防止超大文件拖垮入库/OCR
 
 
 def ingest_files(files) -> str:
     if not files:
         return "没有收到文件。"
-    saved = []
+    saved, skipped = [], []
     for f in files:
-        dest = Path(DATA_DIR) / Path(f).name
-        shutil.copy(f, dest)
-        saved.append(dest.name)
-    n = ingest()
+        src = Path(f)
+        name = src.name
+        if src.suffix.lower() not in SUFFIXES:
+            skipped.append(f"{name}（不支持的类型）")
+            continue
+        if src.stat().st_size > MAX_UPLOAD_MB * 1024 * 1024:
+            skipped.append(f"{name}（超过 {MAX_UPLOAD_MB}MB）")
+            continue
+        shutil.copy(f, Path(DATA_DIR) / name)
+        saved.append(name)
+    if not saved:
+        return "没有可入库的文件。" + (" 跳过：" + "、".join(skipped) if skipped else "")
+    try:
+        n = ingest()
+    except Exception as e:
+        return f"⚠️ 入库失败：{e}\n\n请检查：① .env 里的 API Key 是否有效；② 是否有余额；③ 网络是否正常。"
     agent.refresh()
-    return f"已入库 {len(saved)} 个文件，共 {n} 块，现在可以提问了。"
+    msg = f"已入库 {len(saved)} 个文件，共 {n} 块，现在可以提问了。"
+    if skipped:
+        msg += "（跳过：" + "、".join(skipped) + "）"
+    return msg
 
 
 def reset_chat():
@@ -78,8 +96,14 @@ with gr.Blocks(title="个人知识库问答 Agent") as demo:
 
 if __name__ == "__main__":
     demo.queue()
+    auth = (GRADIO_USERNAME, GRADIO_PASSWORD) if GRADIO_USERNAME and GRADIO_PASSWORD else None
     print("\n" + "=" * 52, flush=True)
     print("  服务已启动，请在浏览器打开：http://localhost:7860", flush=True)
     print("  （0.0.0.0 是绑定地址，用于容器/局域网，不是浏览器地址）", flush=True)
+    if auth:
+        print("  🔒 已开启登录验证（GRADIO_USERNAME / GRADIO_PASSWORD）", flush=True)
+    else:
+        print("  ⚠️ 未设置 GRADIO_USERNAME/GRADIO_PASSWORD，页面无需登录即可访问", flush=True)
+        print("    公网部署请在 .env 里设置这两项，否则任何人都能使用你的 API 额度", flush=True)
     print("=" * 52 + "\n", flush=True)
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=7860, auth=auth)

@@ -15,7 +15,7 @@
 - **可复现评测**：检索消融（Recall/MRR）+ RAGAS 风格生成质量（忠实度 / 相关性 / 上下文精度）
 - **BEIR 基准脚本**：本地加载 BEIR 数据集，算 nDCG@10 / Recall@100
 - **多格式文档**：Markdown / TXT / PDF / Word，图片（jpg/png 等）自动 OCR 转文字入库
-- **工程化**：Gradio 网页、54 个 pytest 单测、GitHub Actions CI、Docker + docker-compose 一键部署
+- **工程化**：Gradio 网页（可选登录鉴权）、54 个 pytest 单测、GitHub Actions CI、Docker + docker-compose 一键部署（非 root 运行 + 健康检查）
 
 ## 技术栈
 

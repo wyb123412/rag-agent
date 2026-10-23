@@ -12,6 +12,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# 降低第三方库（httpx/openai/httpcore）的请求日志噪音，避免刷屏；不影响功能
+for _noisy in ("httpx", "openai", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
 # 无论从哪个目录运行脚本，都固定去项目根目录读 .env
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
@@ -55,14 +59,23 @@ OCR_MODEL = os.getenv("OCR_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
 CORRECTIVE_RAG = os.getenv("CORRECTIVE_RAG", "1") == "1"  # 检索后相关性自检，不相关则改写重检索
 RAPTOR_SIM_THRESHOLD = float(os.getenv("RAPTOR_SIM_THRESHOLD", "0.6"))  # RAPTOR 聚类相似度阈值
 
+# ---------- 网络超时（秒）----------
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "180"))     # 对话/摘要/流式回答可能较久
+EMBED_TIMEOUT = float(os.getenv("EMBED_TIMEOUT", "60"))  # 向量化
+OCR_TIMEOUT = float(os.getenv("OCR_TIMEOUT", "180"))     # 图片 OCR
+
+# ---------- Gradio 网页登录（可选，公网强烈建议开启）----------
+GRADIO_USERNAME = os.getenv("GRADIO_USERNAME", "")
+GRADIO_PASSWORD = os.getenv("GRADIO_PASSWORD", "")
+
 
 def get_llm_client() -> OpenAI:
-    return OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL)
+    return OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL, timeout=LLM_TIMEOUT)
 
 
 def get_embed_client() -> OpenAI:
-    return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL)
+    return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL, timeout=EMBED_TIMEOUT)
 
 
 def get_ocr_client() -> OpenAI:
-    return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL)
+    return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL, timeout=OCR_TIMEOUT)

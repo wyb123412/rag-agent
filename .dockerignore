@@ -1,0 +1,21 @@
+# 敏感信息：真实 API key 绝不能打进镜像
+.env
+.env.*
+!.env.example
+
+# 本地虚拟环境（Windows venv 等，绝不能进 Linux 镜像）
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 数据与向量库：运行时由 docker-compose 的 volume 挂载，不进镜像
+chroma_db/
+data/
+
+# 版本控制与本地临时文件
+.git/
+_app_log.txt
+eval_report.md
+beir_report.md
