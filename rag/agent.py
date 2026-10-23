@@ -36,6 +36,7 @@ class Agent:
         self.summary = ""               # 被压缩掉的旧轮次摘要
         self.last_answer = ""           # 最近一次回答（流式结束后可用）
         self.last_sources: list[str] = []  # 最近一次回答用到的来源文件
+        self.last_trace = None          # 最近一次检索链路的耗时追踪（Tracer 或 None）
 
     def refresh(self):
         """重新入库后调用：重新拿 collection 并重建检索器与图谱。"""
@@ -79,6 +80,7 @@ class Agent:
                 answer = msg.content or ""
                 self._remember(question, answer)
                 self.last_answer, self.last_sources = answer, ctx["sources"]
+                self.last_trace = ctx.get("trace")
                 return answer, ctx["sources"]
 
             # 回填 assistant 的 tool_calls 消息
@@ -91,6 +93,7 @@ class Agent:
         answer = "抱歉，处理步骤过多，请换个问法再试。"
         self._remember(question, answer)
         self.last_answer, self.last_sources = answer, ctx["sources"]
+        self.last_trace = ctx.get("trace")
         return answer, ctx["sources"]
 
     def answer_stream(self, question: str):
@@ -133,6 +136,7 @@ class Agent:
                 answer = "".join(content_parts)
                 self._remember(question, answer)
                 self.last_answer, self.last_sources = answer, ctx["sources"]
+                self.last_trace = ctx.get("trace")
                 return
 
             # 本步是工具调用：回填 tool_calls、执行工具后继续循环
@@ -153,6 +157,7 @@ class Agent:
         answer = "抱歉，处理步骤过多，请换个问法再试。"
         self._remember(question, answer)
         self.last_answer, self.last_sources = answer, ctx["sources"]
+        self.last_trace = ctx.get("trace")
         yield answer
 
     @staticmethod

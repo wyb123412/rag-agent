@@ -5,10 +5,12 @@
 """
 from pathlib import Path
 
-from .config import DATA_DIR, LLM_MODEL, QUERY_REWRITE
+from .config import DATA_DIR, LLM_MODEL, QUERY_REWRITE, CORRECTIVE_RAG
 from .load import load_documents
 from .graph import graph_retrieve
 from .rewrite import hyde_search, multi_search
+from .corrective import corrective_search
+from .trace import Tracer
 
 
 def list_document_names() -> list[str]:
@@ -37,30 +39,39 @@ def _retrieve(ctx: dict, query: str) -> dict:
         return hyde_search(searcher, ctx["llm"], searcher.embed, query)
     if QUERY_REWRITE == "multi":
         return multi_search(searcher, ctx["llm"], query)
+    if CORRECTIVE_RAG:
+        return corrective_search(searcher, ctx["llm"], query, mode="hybrid+rerank")
     return searcher.search(query, mode="hybrid+rerank")
 
 
 def _search_knowledge_base(ctx: dict, args: dict) -> str:
-    """工具1：检索（可查询改写）+ 知识图谱上下文，带编号和来源返回。"""
+    """工具1：检索（可查询改写 + Corrective RAG）+ 知识图谱上下文，带编号和来源返回。"""
     query = (args.get("query") or "").strip()
     if not query:
         return "错误：search_knowledge_base 需要非空的 query 参数。"
+    tracer = Tracer()
+    s = tracer.step("检索")
     r = _retrieve(ctx, query)
+    s.stop()
     # 记录来源，供最终回答展示引用
     ctx["sources"].extend(m.get("source", "") for m in r["metadatas"])
 
     parts = []
     if ctx.get("graph"):
+        g = tracer.step("图谱")
         gctx = graph_retrieve(ctx["llm"], ctx["graph"], query)
+        g.stop()
         if gctx:
             parts.append(gctx)
 
     lines = []
     for i, (doc, meta) in enumerate(zip(r["documents"], r["metadatas"]), 1):
         src = Path(meta.get("source", "?")).name
-        lines.append(f"[{i}]（来源：{src}）{doc}")
+        tag = "（汇总）" if meta.get("type") == "summary" else ""
+        lines.append(f"[{i}]（来源：{src}{tag}）{doc}")
     if lines:
         parts.append("\n\n".join(lines))
+    ctx["trace"] = tracer
     return "\n\n".join(parts) if parts else "知识库里没有检索到相关内容。"
 
 

@@ -39,6 +39,7 @@ RRF_K = int(os.getenv("RRF_K", "60"))  # RRF 融合常数，越大名次权重�
 # ---------- 切片 / 检索 / 路径 ----------
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
+CHUNK_MODE = os.getenv("CHUNK_MODE", "semantic")  # semantic=按标题语义切片 / fixed=固定大小
 TOP_K = int(os.getenv("TOP_K", "4"))
 DATA_DIR = os.getenv("DATA_DIR", str(PROJECT_ROOT / "data" / "samples"))
 CHROMA_DIR = os.getenv("CHROMA_DIR", str(PROJECT_ROOT / "chroma_db"))
@@ -49,6 +50,10 @@ QUERY_REWRITE = os.getenv("QUERY_REWRITE", "none")  # none / hyde / multi
 
 # ---------- 图片 OCR（走硅基流动的视觉模型）----------
 OCR_MODEL = os.getenv("OCR_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
+
+# ---------- Corrective RAG / RAPTOR（进阶）----------
+CORRECTIVE_RAG = os.getenv("CORRECTIVE_RAG", "1") == "1"  # 检索后相关性自检，不相关则改写重检索
+RAPTOR_SIM_THRESHOLD = float(os.getenv("RAPTOR_SIM_THRESHOLD", "0.6"))  # RAPTOR 聚类相似度阈值
 
 
 def get_llm_client() -> OpenAI:

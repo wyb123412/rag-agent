@@ -36,13 +36,22 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 def load_qrels(path: Path) -> dict[str, dict[str, int]]:
+    """读取 BEIR qrels。兼容两种格式并自动跳过表头：
+    - 3 列：query-id \\t corpus-id \\t score
+    - 4 列：query-id \\t 0 \\t corpus-id \\t score
+    """
     qrels = {}
     with open(path, encoding="utf-8") as f:
         for line in f:
             parts = line.strip().split("\t")
-            if len(parts) < 4:
+            if not parts or parts[0] in {"", "query-id", "query_id"}:
                 continue
-            qid, _, docid, score = parts[0], parts[1], parts[2], int(parts[3])
+            if len(parts) >= 4:
+                qid, docid, score = parts[0], parts[2], int(parts[3])
+            elif len(parts) >= 3:
+                qid, docid, score = parts[0], parts[1], int(parts[2])
+            else:
+                continue
             if score > 0:
                 qrels.setdefault(qid, {})[docid] = score
     return qrels
@@ -58,11 +67,16 @@ def main():
     base = Path(args.data_dir)
     corpus = load_jsonl(base / "corpus.jsonl")
     queries = load_jsonl(base / "queries.jsonl")
-    qrel_files = list((base / "qrels").glob("*.tsv"))
-    if not qrel_files:
-        print(f"未找到 {base / 'qrels'} 下的 .tsv 文件。")
+    qrels_dir = base / "qrels"
+    # 优先用 test 分片（BEIR 标准评测集）；没有则退回任意 .tsv
+    qrel_files = sorted(qrels_dir.glob("*.tsv"))
+    qrel_path = qrels_dir / "test.tsv"
+    if not qrel_path.exists():
+        qrel_path = qrel_files[0] if qrel_files else None
+    if qrel_path is None:
+        print(f"未找到 {qrels_dir} 下的 .tsv 文件。")
         return
-    qrels = load_qrels(qrel_files[0])
+    qrels = load_qrels(qrel_path)
 
     if args.limit:
         corpus = corpus[: args.limit]

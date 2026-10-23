@@ -39,6 +39,8 @@ def main():
                     print("\n📚 参考来源：")
                     printed = True
                 print(f"   - {Path(src).name}")
+        if agent.last_trace:
+            print(f"\n⏱ {agent.last_trace.summary()}")
         print()
 
 
