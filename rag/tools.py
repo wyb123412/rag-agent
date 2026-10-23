@@ -5,13 +5,19 @@
 """
 from pathlib import Path
 
-from .config import DATA_DIR, LLM_MODEL
+from .config import DATA_DIR, LLM_MODEL, QUERY_REWRITE
 from .load import load_documents
+from .graph import graph_retrieve
+from .rewrite import hyde_search, multi_search
 
 
 def list_document_names() -> list[str]:
-    """返回 data/samples 下所有文档的文件名（basename），用于注入工具描述。"""
-    return [Path(d["path"]).name for d in load_documents(DATA_DIR)]
+    """返回 data/samples 下所有文档的文件名（basename），用于注入工具描述。
+
+    只列文件名、不做解析/OCR，避免每次启动都重新识别一遍图片。
+    """
+    from .load import list_document_paths
+    return [Path(p).name for p in list_document_paths(DATA_DIR)]
 
 
 def _find_document(filename: str) -> dict | None:
@@ -24,20 +30,38 @@ def _find_document(filename: str) -> dict | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def _retrieve(ctx: dict, query: str) -> dict:
+    """按 QUERY_REWRITE 配置分派检索方式（hyde / multi / 默认 hybrid+rerank）。"""
+    searcher = ctx["searcher"]
+    if QUERY_REWRITE == "hyde":
+        return hyde_search(searcher, ctx["llm"], searcher.embed, query)
+    if QUERY_REWRITE == "multi":
+        return multi_search(searcher, ctx["llm"], query)
+    return searcher.search(query, mode="hybrid+rerank")
+
+
 def _search_knowledge_base(ctx: dict, args: dict) -> str:
-    """工具1：在知识库中检索与问题最相关的切片，带编号和来源返回。"""
+    """工具1：检索（可查询改写）+ 知识图谱上下文，带编号和来源返回。"""
     query = (args.get("query") or "").strip()
     if not query:
         return "错误：search_knowledge_base 需要非空的 query 参数。"
-    r = ctx["searcher"].search(query, mode="hybrid+rerank")
+    r = _retrieve(ctx, query)
     # 记录来源，供最终回答展示引用
     ctx["sources"].extend(m.get("source", "") for m in r["metadatas"])
+
+    parts = []
+    if ctx.get("graph"):
+        gctx = graph_retrieve(ctx["llm"], ctx["graph"], query)
+        if gctx:
+            parts.append(gctx)
 
     lines = []
     for i, (doc, meta) in enumerate(zip(r["documents"], r["metadatas"]), 1):
         src = Path(meta.get("source", "?")).name
         lines.append(f"[{i}]（来源：{src}）{doc}")
-    return "\n\n".join(lines) if lines else "知识库里没有检索到相关内容。"
+    if lines:
+        parts.append("\n\n".join(lines))
+    return "\n\n".join(parts) if parts else "知识库里没有检索到相关内容。"
 
 
 def _count_words(ctx: dict, args: dict) -> str:

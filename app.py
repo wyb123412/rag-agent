@@ -1,4 +1,4 @@
-"""Gradio 网页界面：复用 Agent 做多轮问答，支持上传文档后重新入库。
+"""Gradio 网页界面：复用 Agent 做多轮流式问答，支持上传文档后重新入库。
 
 用法：python app.py
 """
@@ -18,14 +18,6 @@ from rag.config import DATA_DIR
 from ingest import ingest
 
 agent = Agent()
-
-
-def respond(message: str, history=None) -> str:
-    answer, sources = agent.answer(message)
-    names = list(dict.fromkeys(Path(s).name for s in sources if s))
-    if names:
-        answer += "\n\n📚 来源：" + "、".join(names)
-    return answer
 
 
 def ingest_files(files) -> str:
@@ -54,16 +46,27 @@ with gr.Blocks(title="个人知识库问答 Agent") as demo:
         msg = gr.Textbox(label="问题", placeholder="输入问题后回车")
         clear = gr.Button("清空对话")
 
-        def _submit(text, history):
+        def _chat(message, history):
             history = history or []
-            history.append([text, None])
-            return "", history
+            history.append({"role": "user", "content": message})
+            history.append({"role": "assistant", "content": ""})
+            try:
+                for tok in agent.answer_stream(message):
+                    history[-1]["content"] += tok
+                    yield history, ""
+            except Exception as e:  # 网络/API 异常时，把错误友好地显示在聊天里，而不是让页面报错
+                history[-1]["content"] = (
+                    f"⚠️ 出错了：{e}\n\n"
+                    "请检查：① 网络是否正常；② .env 里的 API Key 是否有效；③ 是否有余额。确认后重试。"
+                )
+                yield history, ""
+                return
+            names = list(dict.fromkeys(Path(s).name for s in agent.last_sources if s))
+            if names:
+                history[-1]["content"] += "\n\n📚 来源：" + "、".join(names)
+            yield history, ""
 
-        def _reply(history):
-            history[-1][1] = respond(history[-1][0], history)
-            return history
-
-        msg.submit(_submit, [msg, chat], [msg, chat], queue=False).then(_reply, chat, chat)
+        msg.submit(_chat, [msg, chat], [chat, msg])
         clear.click(reset_chat, None, [chat, msg], queue=False)
 
     with gr.Tab("上传文档"):
@@ -74,4 +77,9 @@ with gr.Blocks(title="个人知识库问答 Agent") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.queue()
+    print("\n" + "=" * 52, flush=True)
+    print("  服务已启动，请在浏览器打开：http://localhost:7860", flush=True)
+    print("  （0.0.0.0 是绑定地址，用于容器/局域网，不是浏览器地址）", flush=True)
+    print("=" * 52 + "\n", flush=True)
+    demo.launch(server_name="0.0.0.0", server_port=7860)

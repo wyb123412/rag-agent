@@ -3,3 +3,13 @@ __pycache__/
 venv/
 chroma_db/
 *.pyc
+
+# 可再生成的构建产物 / 下载的数据
+data/graph.json
+data/beir/
+
+# 本地临时日志
+_app_log.txt
+
+# 含真实个人信息的样本（身份证号/电话/住址），不提交
+data/samples/国家助学金.jpg

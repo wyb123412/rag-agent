@@ -50,9 +50,10 @@ class HybridSearcher:
         if self._documents:
             self._bm25 = BM25Okapi([tokenize(d) for d in self._documents])
 
-    def search(self, query: str, mode: str = "hybrid+rerank", top_k: int = TOP_K) -> dict:
-        """统一检索入口，返回 {"documents": [...], "metadatas": [...]}。"""
-        qvec = embed_query(self.embed, query)
+    def search(self, query: str, mode: str = "hybrid+rerank", top_k: int = TOP_K, qvec=None) -> dict:
+        """统一检索入口，返回 {"documents": [...], "metadatas": [...]}。qvec 可选，供 HyDE 复用向量。"""
+        if qvec is None:
+            qvec = embed_query(self.embed, query)
 
         if mode == "vector":
             return retrieve(self.collection, qvec, top_k=top_k)
@@ -92,3 +93,20 @@ class HybridSearcher:
                 metas = [metas[i] for i, _ in pairs]
 
         return {"documents": docs, "metadatas": metas}
+
+
+def search_multi(searcher, queries: list[str], mode: str = "hybrid+rerank",
+                 top_k: int = TOP_K, rrf_k: float = RRF_K) -> dict:
+    """对多个改写问法分别检索，按「文档文本」维度做 RRF 合并取 top_k。
+
+    返回 {"documents": [...], "metadatas": [...]}，顺序为融合后的名次。
+    """
+    scores: dict[str, float] = {}
+    doc_to_meta: dict[str, dict] = {}
+    for q in queries:
+        r = searcher.search(q, mode=mode, top_k=top_k)
+        for rank, (doc, meta) in enumerate(zip(r["documents"], r["metadatas"])):
+            scores[doc] = scores.get(doc, 0.0) + 1.0 / (rrf_k + rank + 1)
+            doc_to_meta[doc] = meta
+    ranked = sorted(scores, key=scores.get, reverse=True)[:top_k]
+    return {"documents": ranked, "metadatas": [doc_to_meta[d] for d in ranked]}

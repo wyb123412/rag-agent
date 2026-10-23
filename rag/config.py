@@ -42,6 +42,13 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
 TOP_K = int(os.getenv("TOP_K", "4"))
 DATA_DIR = os.getenv("DATA_DIR", str(PROJECT_ROOT / "data" / "samples"))
 CHROMA_DIR = os.getenv("CHROMA_DIR", str(PROJECT_ROOT / "chroma_db"))
+GRAPH_PATH = os.getenv("GRAPH_PATH", str(PROJECT_ROOT / "data" / "graph.json"))
+
+# ---------- 查询改写 ----------
+QUERY_REWRITE = os.getenv("QUERY_REWRITE", "none")  # none / hyde / multi
+
+# ---------- 图片 OCR（走硅基流动的视觉模型）----------
+OCR_MODEL = os.getenv("OCR_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
 
 
 def get_llm_client() -> OpenAI:
@@ -49,4 +56,8 @@ def get_llm_client() -> OpenAI:
 
 
 def get_embed_client() -> OpenAI:
+    return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL)
+
+
+def get_ocr_client() -> OpenAI:
     return OpenAI(api_key=EMBED_API_KEY, base_url=EMBED_BASE_URL)

@@ -1,4 +1,4 @@
-"""模块 6：问答 —— 用 Agent（工具调用 + ReAct）自主判断「检索回答」还是「调用工具」，CLI 多轮对话。
+"""模块 6：问答 —— 用 Agent（工具调用 + ReAct）自主判断「检索回答」还是「调用工具」，CLI 多轮流式对话。
 
 用法：python chat.py
 """
@@ -25,13 +25,14 @@ def main():
         if question.lower() in {"exit", "quit", "q"}:
             break
 
-        answer, sources = agent.answer(question)
-
-        print(f"\n助手：{answer}")
+        print("\n助手：", end="", flush=True)
+        for tok in agent.answer_stream(question):
+            print(tok, end="", flush=True)
+        print()
 
         seen = set()
         printed = False
-        for src in sources:
+        for src in agent.last_sources:
             if src and src not in seen:
                 seen.add(src)
                 if not printed:

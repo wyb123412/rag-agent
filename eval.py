@@ -1,4 +1,4 @@
-"""评测脚本：对三种检索模式做消融，输出 Hit@5 / Recall@5 / MRR，并对最终模式的答案做忠实度打分。
+"""评测脚本：对多种检索模式做消融，输出 Recall@k / MRR，并对最终模式的答案做忠实度打分。
 
 用法：python eval.py
 产出：eval_report.md（消融表 + 逐题忠实度）
@@ -18,6 +18,7 @@ from rag.hybrid import HybridSearcher
 
 EVAL_SET = Path(__file__).parent / "data" / "eval_set.json"
 K = 5
+MODES = ["vector", "hybrid", "hybrid+rerank", "hyde+hybrid+rerank", "multi+hybrid+rerank"]
 
 ANSWER_SYSTEM = """你只能根据下面【参考资料】回答。若资料里有答案，简洁回答并标注 [1][2] 来源；若资料不足以回答，就说"根据我的知识库无法回答这个问题"，不要编造。"""
 
@@ -29,14 +30,24 @@ def load_eval_set() -> list[dict]:
     return json.loads(EVAL_SET.read_text(encoding="utf-8"))["questions"]
 
 
-def retrieval_metrics(searcher: HybridSearcher, questions: list[dict], mode: str, ks: tuple = (1, 3, 5)) -> dict:
+def _retrieve_for_mode(searcher, llm, question: str, mode: str, k: int) -> dict:
+    if mode == "hyde+hybrid+rerank":
+        from rag.rewrite import hyde_search
+        return hyde_search(searcher, llm, searcher.embed, question, mode="hybrid+rerank", top_k=k)
+    if mode == "multi+hybrid+rerank":
+        from rag.rewrite import multi_search
+        return multi_search(searcher, llm, question, mode="hybrid+rerank", top_k=k)
+    return searcher.search(question, mode=mode, top_k=k)
+
+
+def retrieval_metrics(searcher, llm, questions: list[dict], mode: str, ks: tuple = (1, 3, 5)) -> dict:
     """计算多个 k 下的 Recall@k 与 MRR@k。单 gold 时 Recall@k == Hit@k。"""
     n = len(questions)
     out = {}
     for k in ks:
         hits, mrr = 0, 0.0
         for q in questions:
-            r = searcher.search(q["question"], mode=mode, top_k=k)
+            r = _retrieve_for_mode(searcher, llm, q["question"], mode, k)
             sources = [Path(m["source"]).name for m in r["metadatas"]]
             gold = q["gold_source"]
             if gold in sources:
@@ -87,10 +98,10 @@ def main():
     print(f"评测集：{len(questions)} 条问题，top_k={K}\n")
 
     rows = {}
-    for mode in ["vector", "hybrid", "hybrid+rerank"]:
-        m = retrieval_metrics(searcher, questions, mode)
+    for mode in MODES:
+        m = retrieval_metrics(searcher, llm, questions, mode)
         rows[mode] = m
-        print(f"[{mode:14s}] Recall@1={m['recall@1']:.2%}  Recall@3={m['recall@3']:.2%}  Recall@5={m['recall@5']:.2%}  MRR@5={m['mrr@5']:.3f}")
+        print(f"[{mode:22s}] Recall@1={m['recall@1']:.2%}  Recall@3={m['recall@3']:.2%}  Recall@5={m['recall@5']:.2%}  MRR@5={m['mrr@5']:.3f}")
 
     # 忠实度：只在最终模式（hybrid+rerank）上评测
     faithful = 0
@@ -112,7 +123,7 @@ def main():
         f"- 答案忠实度：{faithfulness:.2%}\n\n",
         "## 消融表\n\n| 模式 | Recall@1 | Recall@3 | Recall@5 | MRR@5 |\n|---|---|---|---|---|\n",
     ]
-    for mode in ["vector", "hybrid", "hybrid+rerank"]:
+    for mode in MODES:
         m = rows[mode]
         lines.append(f"| {mode} | {m['recall@1']:.2%} | {m['recall@3']:.2%} | {m['recall@5']:.2%} | {m['mrr@5']:.3f} |\n")
     lines.append("\n## 逐题忠实度\n\n| 问题 | 判定 |\n|---|---|\n")
